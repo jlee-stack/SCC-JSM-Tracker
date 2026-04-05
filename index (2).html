@@ -1,0 +1,734 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover" />
+  <title>JSM Participation Tracker</title>
+  <style>
+    :root {
+      --bg: #050505;
+      --panel: #0f0f10;
+      --panel-2: #161617;
+      --border: #262629;
+      --text: #f6f7f9;
+      --muted: #a0a6b0;
+      --accent: #ffffff;
+      --success: #88ffb0;
+      --danger: #ff8c8c;
+      --warning: #ffd27a;
+      --radius: 18px;
+      --shadow: 0 10px 30px rgba(0,0,0,.35);
+      --max: 920px;
+    }
+    * { box-sizing: border-box; }
+    html, body { margin: 0; padding: 0; background: var(--bg); color: var(--text); font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+    body { min-height: 100vh; }
+    button, input, select { font: inherit; }
+    a { color: var(--text); }
+    .app { max-width: var(--max); margin: 0 auto; padding: 16px 14px 120px; }
+    .topbar {
+      display: flex; align-items: center; justify-content: space-between; gap: 12px;
+      position: sticky; top: 0; z-index: 20; backdrop-filter: blur(10px);
+      background: rgba(5,5,5,.88); padding: calc(env(safe-area-inset-top, 0px) + 10px) 0 12px;
+    }
+    .brand { display: flex; align-items: center; gap: 12px; min-width: 0; }
+    .logo {
+      width: 46px; height: 46px; border-radius: 14px; border: 1px solid var(--border);
+      background: linear-gradient(135deg, #111 0%, #1a1a1c 100%); display: grid; place-items: center;
+      color: #fff; font-size: 12px; font-weight: 800; letter-spacing: .12em; text-transform: uppercase; overflow: hidden;
+    }
+    .logo img { width: 100%; height: 100%; object-fit: cover; }
+    .title h1 { margin: 0; font-size: 1.02rem; line-height: 1.1; }
+    .title p { margin: 3px 0 0; color: var(--muted); font-size: .82rem; }
+    .panel {
+      background: linear-gradient(180deg, rgba(255,255,255,.025), rgba(255,255,255,.012));
+      border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow);
+    }
+    .hero { padding: 18px; margin-top: 8px; }
+    .hero h2 { margin: 0 0 8px; font-size: 1.2rem; }
+    .hero p { margin: 0; color: var(--muted); line-height: 1.45; }
+    .grid { display: grid; gap: 12px; }
+    .auth-actions, .quick-actions { display: flex; flex-wrap: wrap; gap: 10px; margin-top: 14px; }
+    .btn {
+      appearance: none; border: 1px solid var(--border); background: #171718; color: var(--text);
+      border-radius: 14px; padding: 12px 14px; cursor: pointer; min-height: 46px; transition: .18s ease;
+    }
+    .btn:hover { transform: translateY(-1px); }
+    .btn.primary { background: #fff; color: #000; border-color: #fff; font-weight: 700; }
+    .btn.ghost { background: transparent; }
+    .btn.warn { color: var(--warning); }
+    .btn.danger { color: var(--danger); }
+    .muted { color: var(--muted); }
+    .pill {
+      border: 1px solid var(--border); color: var(--muted); border-radius: 999px; padding: 7px 10px; font-size: .76rem;
+      white-space: nowrap;
+    }
+    .section-title { display: flex; justify-content: space-between; align-items: center; gap: 10px; margin: 16px 2px 10px; }
+    .section-title h3 { margin: 0; font-size: 1rem; }
+    .cards { display: grid; gap: 12px; }
+    .card { padding: 14px; }
+    .metric-head { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; }
+    .metric-title { margin: 0; font-size: 1rem; }
+    .score { color: var(--muted); font-size: .84rem; margin-top: 4px; }
+    .metric-count { font-size: 1.6rem; font-weight: 800; }
+    .metric-sub { color: var(--muted); font-size: .8rem; margin-top: 4px; }
+    .card-actions { display: flex; gap: 10px; margin-top: 14px; }
+    .card-actions .btn { flex: 1; }
+    .list { display: grid; gap: 8px; margin-top: 12px; }
+    .list-row {
+      display: grid; grid-template-columns: 1fr auto auto auto; gap: 8px; align-items: center;
+      border: 1px solid var(--border); border-radius: 12px; padding: 10px 12px; background: rgba(255,255,255,.02);
+    }
+    .list-row.small { grid-template-columns: 1fr auto auto; }
+    .tiny { font-size: .76rem; color: var(--muted); }
+    .input, .select {
+      width: 100%; background: #101011; color: var(--text); border: 1px solid var(--border); border-radius: 14px;
+      padding: 12px 14px; min-height: 46px; outline: none;
+    }
+    .stack { display: grid; gap: 10px; }
+    .two { display: grid; gap: 10px; grid-template-columns: 1fr 1fr; }
+    .three { display: grid; gap: 10px; grid-template-columns: 1fr 1fr 1fr; }
+    .divider { height: 1px; background: var(--border); margin: 14px 0; }
+    .table-wrap { overflow: auto; border-radius: 16px; border: 1px solid var(--border); }
+    table { width: 100%; border-collapse: collapse; min-width: 700px; }
+    th, td { text-align: left; padding: 12px 10px; border-bottom: 1px solid var(--border); font-size: .9rem; }
+    th { color: var(--muted); background: #0c0c0d; position: sticky; top: 0; }
+    tr:last-child td { border-bottom: none; }
+    .empty { padding: 14px; color: var(--muted); border: 1px dashed var(--border); border-radius: 14px; }
+    .footer-note { margin-top: 12px; color: var(--muted); font-size: .8rem; line-height: 1.45; }
+    .hidden { display: none !important; }
+    .right { text-align: right; }
+    .toast {
+      position: fixed; left: 50%; bottom: 18px; transform: translateX(-50%);
+      background: #141416; color: var(--text); border: 1px solid var(--border);
+      padding: 12px 14px; border-radius: 14px; box-shadow: var(--shadow); z-index: 60; min-width: 220px; text-align: center;
+    }
+    @media (max-width: 700px) {
+      .two, .three { grid-template-columns: 1fr; }
+      .list-row { grid-template-columns: 1fr auto; }
+      .list-row > :nth-child(3), .list-row > :nth-child(4) { grid-column: 1 / -1; }
+      .card-actions { flex-direction: column; }
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <div class="topbar">
+      <div class="brand">
+        <div class="logo" id="logoBox">JSM</div>
+        <div class="title">
+          <h1>JSM Participation Tracker</h1>
+          <p>Mobile-first participation logging for squash activities</p>
+        </div>
+      </div>
+      <div id="topPills" class="auth-actions">
+        <span class="pill" id="rolePill">Signed out</span>
+      </div>
+    </div>
+
+    <section id="authSection" class="panel hero">
+      <h2>Track participation simply</h2>
+      <p>Users can sign in with Google, tap <strong>+1</strong> for each activity, edit past entries, and admins can manage fields, scores, rankings, and downloads.</p>
+      <div class="auth-actions">
+        <button class="btn primary" id="googleLoginBtn">Sign in with Google</button>
+        
+      </div>
+      <div class="footer-note">Logo has been added. After you upload the app to GitHub Pages, keep <code>logo.png</code> in the same folder as <code>index.html</code>.</div>
+    </section>
+
+    <section id="userSection" class="hidden">
+      <div class="section-title">
+        <h3>Your summary</h3>
+        <div class="auth-actions">
+          <span class="pill" id="welcomePill">Welcome</span>
+          <button class="btn" id="logoutBtn">Log out</button>
+        </div>
+      </div>
+      <div class="panel card">
+        <div class="two">
+          <div>
+            <div class="tiny">Name</div>
+            <div id="profileName">-</div>
+          </div>
+          <div>
+            <div class="tiny">Email</div>
+            <div id="profileEmail">-</div>
+          </div>
+        </div>
+        <div class="divider"></div>
+        <div class="two">
+          <div>
+            <div class="tiny">Total participation score</div>
+            <div class="metric-count" id="totalScore">0</div>
+          </div>
+          <div>
+            <div class="tiny">Total logged entries</div>
+            <div class="metric-count" id="totalEntries">0</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-title">
+        <h3>JSM Participation Data</h3>
+        <div class="pill" id="fieldCountPill">0 fields</div>
+      </div>
+      <div id="metricCards" class="cards"></div>
+    </section>
+
+    <section id="adminSection" class="hidden">
+      <div class="section-title">
+        <h3>Admin dashboard</h3>
+        <span class="pill">Admins can see all users, logins, rankings, and download CSV</span>
+      </div>
+
+      <div class="panel card stack">
+        <div class="two">
+          <div>
+            <div class="tiny">Add participation field</div>
+            <input class="input" id="newFieldName" placeholder="Example: Awards won" />
+          </div>
+          <div>
+            <div class="tiny">Participation score per entry</div>
+            <input class="input" id="newFieldScore" type="number" min="0" step="1" value="1" />
+          </div>
+        </div>
+        <button class="btn primary" id="addFieldBtn">Add field</button>
+        <div id="fieldAdminList" class="list"></div>
+      </div>
+
+      <div class="panel card stack" style="margin-top:12px;">
+        <div class="two">
+          <div>
+            <div class="tiny">Sort users by</div>
+            <select class="select" id="sortUsersSelect">
+              <option value="score_desc">Score (high to low)</option>
+              <option value="score_asc">Score (low to high)</option>
+              <option value="name_asc">Name (A to Z)</option>
+              <option value="logins_desc">Latest login</option>
+            </select>
+          </div>
+          <div>
+            <div class="tiny">Filter by name/email</div>
+            <input class="input" id="userSearchInput" placeholder="Search users" />
+          </div>
+        </div>
+        <div class="quick-actions">
+          <button class="btn" id="refreshAdminBtn">Refresh admin data</button>
+          <button class="btn primary" id="downloadCsvBtn">Download CSV</button>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead><tr id="adminTableHead"></tr></thead>
+            <tbody id="adminTableBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <div id="toast" class="toast hidden"></div>
+
+  <script type="module">
+    import { initializeApp } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-app.js';
+    import {
+      getAuth, GoogleAuthProvider, signInWithPopup, onAuthStateChanged, signOut
+    } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
+    import {
+      getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp,
+      onSnapshot, query, orderBy, where, getDocs, updateDoc, deleteDoc
+    } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
+
+    // =============================
+    // 1) PASTE YOUR FIREBASE CONFIG HERE
+    // =============================
+    const firebaseConfig = {
+      apiKey: 'REPLACE_ME',
+      authDomain: 'REPLACE_ME',
+      projectId: 'REPLACE_ME',
+      storageBucket: 'REPLACE_ME',
+      messagingSenderId: 'REPLACE_ME',
+      appId: 'REPLACE_ME'
+    };
+
+    // Logo file path. Keep logo.png in the same folder as index.html.
+    const LOGO_URL = './logo.png';
+
+    const DEFAULT_FIELDS = [
+      { name: 'SCC Trainings', score: 1, order: 1, active: true },
+      { name: 'SCC socials', score: 1, order: 2, active: true },
+      { name: 'SCC matches', score: 2, order: 3, active: true },
+      { name: 'SCC Tours', score: 2, order: 4, active: true },
+      { name: 'NSL matches', score: 3, order: 5, active: true },
+      { name: 'NSL leadership', score: 4, order: 6, active: true }
+    ];
+
+    const app = initializeApp(firebaseConfig);
+    const auth = getAuth(app);
+    const db = getFirestore(app);
+    const provider = new GoogleAuthProvider();
+
+    const state = {
+      user: null,
+      profile: null,
+      isAdmin: false,
+      fields: [],
+      myEntries: [],
+      allUsers: []
+    };
+
+    const $ = (id) => document.getElementById(id);
+    const authSection = $('authSection');
+    const userSection = $('userSection');
+    const adminSection = $('adminSection');
+    const metricCards = $('metricCards');
+    const fieldAdminList = $('fieldAdminList');
+    const adminTableHead = $('adminTableHead');
+    const adminTableBody = $('adminTableBody');
+
+    function toast(message) {
+      const t = $('toast');
+      t.textContent = message;
+      t.classList.remove('hidden');
+      clearTimeout(window.__toastTimer);
+      window.__toastTimer = setTimeout(() => t.classList.add('hidden'), 2200);
+    }
+
+    function formatDate(tsOrDate) {
+      if (!tsOrDate) return '—';
+      const d = tsOrDate?.toDate ? tsOrDate.toDate() : new Date(tsOrDate);
+      if (Number.isNaN(d.getTime())) return '—';
+      return d.toLocaleDateString(undefined, { year: 'numeric', month: 'short', day: 'numeric' });
+    }
+
+    function formatDateInput(tsOrDate) {
+      if (!tsOrDate) return '';
+      const d = tsOrDate?.toDate ? tsOrDate.toDate() : new Date(tsOrDate);
+      if (Number.isNaN(d.getTime())) return '';
+      const yyyy = d.getFullYear();
+      const mm = String(d.getMonth() + 1).padStart(2, '0');
+      const dd = String(d.getDate()).padStart(2, '0');
+      return `${yyyy}-${mm}-${dd}`;
+    }
+
+    function asTime(dateStr) {
+      return new Date(`${dateStr}T12:00:00`);
+    }
+
+    function setLogo() {
+      const box = $('logoBox');
+      if (LOGO_URL) {
+        box.innerHTML = `<img src="${LOGO_URL}" alt="JSM logo" />`;
+      } else {
+        box.textContent = 'JSM';
+      }
+    }
+    setLogo();
+
+    async function ensureDefaults(isAdminUser = false) {
+      const snap = await getDocs(query(collection(db, 'fields'), orderBy('order')));
+      if (!snap.empty || !isAdminUser) return;
+      for (const f of DEFAULT_FIELDS) {
+        await addDoc(collection(db, 'fields'), { ...f, createdAt: serverTimestamp() });
+      }
+    }
+
+    async function ensureUserProfile(user) {
+      const ref = doc(db, 'users', user.uid);
+      const snap = await getDoc(ref);
+      if (!snap.exists()) {
+        await setDoc(ref, {
+          name: user.displayName || '',
+          email: user.email || '',
+          role: 'user',
+          createdAt: serverTimestamp(),
+          lastLoginAt: serverTimestamp()
+        });
+      } else {
+        await updateDoc(ref, { lastLoginAt: serverTimestamp() });
+      }
+      await addDoc(collection(db, 'users', user.uid, 'logins'), {
+        at: serverTimestamp(),
+        email: user.email || ''
+      });
+      return (await getDoc(ref)).data();
+    }
+
+    async function signInGoogle() {
+      try {
+        await signInWithPopup(auth, provider);
+      } catch (e) {
+        console.error(e);
+        toast('Google sign-in failed');
+      }
+    }
+
+    async function logout() {
+      await signOut(auth);
+      toast('Signed out');
+    }
+
+    function renderProfile() {
+      $('profileName').textContent = state.profile?.name || '—';
+      $('profileEmail').textContent = state.profile?.email || '—';
+      $('welcomePill').textContent = state.profile?.name ? `Hi, ${state.profile.name}` : 'Welcome';
+      $('rolePill').textContent = state.isAdmin ? 'Admin' : 'Member';
+    }
+
+    function getFieldSummary(fieldId) {
+      const field = state.fields.find(f => f.id === fieldId);
+      const entries = state.myEntries.filter(e => e.fieldId === fieldId);
+      const count = entries.length;
+      return {
+        field,
+        count,
+        score: count * (field?.score || 0),
+        last: entries[0]?.entryDate || null,
+        entries
+      };
+    }
+
+    function renderMetrics() {
+      const summaries = state.fields.map(f => getFieldSummary(f.id));
+      const totalEntries = summaries.reduce((a, b) => a + b.count, 0);
+      const totalScore = summaries.reduce((a, b) => a + b.score, 0);
+      $('totalEntries').textContent = totalEntries;
+      $('totalScore').textContent = totalScore;
+      $('fieldCountPill').textContent = `${state.fields.length} fields`;
+
+      metricCards.innerHTML = '';
+      if (!state.fields.length) {
+        metricCards.innerHTML = `<div class="empty">No participation fields yet.</div>`;
+        return;
+      }
+
+      for (const summary of summaries) {
+        const { field, count, score, last, entries } = summary;
+        const div = document.createElement('div');
+        div.className = 'panel card';
+        div.innerHTML = `
+          <div class="metric-head">
+            <div>
+              <div class="metric-title">${escapeHtml(field.name)}</div>
+              <div class="score">Participation score: ${field.score} per entry</div>
+            </div>
+            <div class="right">
+              <div class="metric-count">${count}</div>
+              <div class="metric-sub">Last: ${formatDate(last)}</div>
+            </div>
+          </div>
+          <div class="card-actions">
+            <button class="btn primary" data-add="${field.id}">+1</button>
+            <button class="btn" data-edit="${field.id}">Edit / bulk input</button>
+          </div>
+          <div class="footer-note">Score from this category: ${score}. You can add fast with +1, or edit dates, delete records, add entries, or leave it nil in edit mode.</div>
+          <div class="list hidden" id="editor-${field.id}"></div>
+        `;
+        metricCards.appendChild(div);
+        const editor = div.querySelector(`#editor-${CSS.escape(field.id)}`);
+        renderFieldEditor(editor, field, entries);
+      }
+
+      document.querySelectorAll('[data-add]').forEach(btn => {
+        btn.onclick = async () => {
+          const fieldId = btn.getAttribute('data-add');
+          await addEntry(fieldId, new Date());
+        };
+      });
+
+      document.querySelectorAll('[data-edit]').forEach(btn => {
+        btn.onclick = () => {
+          const fieldId = btn.getAttribute('data-edit');
+          const editor = document.getElementById(`editor-${fieldId}`);
+          editor.classList.toggle('hidden');
+        };
+      });
+    }
+
+    function renderFieldEditor(container, field, entries) {
+      const rows = entries.map(e => `
+        <div class="list-row small">
+          <div>
+            <div>${formatDate(e.entryDate)}</div>
+            <div class="tiny">Entry ID: ${e.id}</div>
+          </div>
+          <input class="input" type="date" value="${formatDateInput(e.entryDate)}" data-edit-date="${e.id}" />
+          <button class="btn danger" data-del-entry="${e.id}">Delete</button>
+        </div>
+      `).join('');
+
+      container.innerHTML = `
+        <div class="divider"></div>
+        <div class="tiny">Existing entries</div>
+        ${rows || '<div class="empty">Nil</div>'}
+        <div class="divider"></div>
+        <div class="two">
+          <div>
+            <div class="tiny">Add new entry date</div>
+            <input class="input" type="date" id="new-date-${field.id}" />
+          </div>
+          <div>
+            <div class="tiny">Leave blank for nil</div>
+            <button class="btn primary" id="add-date-btn-${field.id}" style="margin-top:22px; width:100%;">Add dated entry</button>
+          </div>
+        </div>
+      `;
+
+      container.querySelectorAll('[data-del-entry]').forEach(btn => {
+        btn.onclick = async () => {
+          await deleteEntry(btn.getAttribute('data-del-entry'));
+        };
+      });
+      container.querySelectorAll('[data-edit-date]').forEach(inp => {
+        inp.onchange = async () => {
+          const v = inp.value;
+          if (!v) return;
+          await updateEntryDate(inp.getAttribute('data-edit-date'), asTime(v));
+        };
+      });
+      const addBtn = container.querySelector(`#add-date-btn-${field.id}`);
+      addBtn.onclick = async () => {
+        const v = container.querySelector(`#new-date-${field.id}`).value;
+        if (!v) {
+          toast('Nil selected. No entry added.');
+          return;
+        }
+        await addEntry(field.id, asTime(v));
+      };
+    }
+
+    async function addEntry(fieldId, dateObj) {
+      if (!state.user) return;
+      await addDoc(collection(db, 'users', state.user.uid, 'entries'), {
+        fieldId,
+        entryDate: dateObj,
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+      toast('Entry added');
+    }
+
+    async function updateEntryDate(entryId, dateObj) {
+      await updateDoc(doc(db, 'users', state.user.uid, 'entries', entryId), {
+        entryDate: dateObj,
+        updatedAt: serverTimestamp()
+      });
+      toast('Entry updated');
+    }
+
+    async function deleteEntry(entryId) {
+      await deleteDoc(doc(db, 'users', state.user.uid, 'entries', entryId));
+      toast('Entry deleted');
+    }
+
+    function escapeHtml(str = '') {
+      return str.replace(/[&<>"]/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+    }
+
+    function watchFields() {
+      return onSnapshot(query(collection(db, 'fields'), orderBy('order')), snap => {
+        state.fields = snap.docs.map(d => ({ id: d.id, ...d.data() })).filter(f => f.active !== false);
+        renderMetrics();
+        if (state.isAdmin) renderFieldAdmin();
+      });
+    }
+
+    function watchMyEntries() {
+      if (!state.user) return () => {};
+      return onSnapshot(query(collection(db, 'users', state.user.uid, 'entries'), orderBy('entryDate', 'desc')), snap => {
+        state.myEntries = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+        renderMetrics();
+      });
+    }
+
+    async function renderFieldAdmin() {
+      fieldAdminList.innerHTML = '';
+      const all = await getDocs(query(collection(db, 'fields'), orderBy('order')));
+      all.forEach(docSnap => {
+        const f = { id: docSnap.id, ...docSnap.data() };
+        const row = document.createElement('div');
+        row.className = 'list-row';
+        row.innerHTML = `
+          <input class="input" value="${escapeHtml(f.name)}" data-name="${f.id}" />
+          <input class="input" type="number" min="0" step="1" value="${f.score || 0}" data-score="${f.id}" />
+          <button class="btn" data-save-field="${f.id}">Save</button>
+          <button class="btn danger" data-toggle-field="${f.id}">${f.active === false ? 'Restore' : 'Hide'}</button>
+        `;
+        fieldAdminList.appendChild(row);
+      });
+
+      fieldAdminList.querySelectorAll('[data-save-field]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.getAttribute('data-save-field');
+          const name = fieldAdminList.querySelector(`[data-name="${id}"]`).value.trim();
+          const score = Number(fieldAdminList.querySelector(`[data-score="${id}"]`).value || 0);
+          await updateDoc(doc(db, 'fields', id), { name, score, updatedAt: serverTimestamp() });
+          toast('Field updated');
+        };
+      });
+
+      fieldAdminList.querySelectorAll('[data-toggle-field]').forEach(btn => {
+        btn.onclick = async () => {
+          const id = btn.getAttribute('data-toggle-field');
+          const snap = await getDoc(doc(db, 'fields', id));
+          const current = snap.data()?.active !== false;
+          await updateDoc(doc(db, 'fields', id), { active: !current, updatedAt: serverTimestamp() });
+          toast(current ? 'Field hidden' : 'Field restored');
+        };
+      });
+    }
+
+    async function addField() {
+      const name = $('newFieldName').value.trim();
+      const score = Number($('newFieldScore').value || 0);
+      if (!name) return toast('Enter a field name');
+      const nextOrder = (state.fields[state.fields.length - 1]?.order || state.fields.length || 0) + 1;
+      await addDoc(collection(db, 'fields'), { name, score, order: nextOrder, active: true, createdAt: serverTimestamp() });
+      $('newFieldName').value = '';
+      $('newFieldScore').value = '1';
+      toast('Field added');
+    }
+
+    async function loadAdminData() {
+      const userDocs = await getDocs(collection(db, 'users'));
+      const fieldsAll = await getDocs(query(collection(db, 'fields'), orderBy('order')));
+      const fields = fieldsAll.docs.map(d => ({ id: d.id, ...d.data() }));
+
+      const users = [];
+      for (const userDoc of userDocs.docs) {
+        const user = { id: userDoc.id, ...userDoc.data() };
+        const entriesSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'entries'), orderBy('entryDate', 'desc')));
+        const loginsSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'logins'), orderBy('at', 'desc')));
+        const entries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const counts = {};
+        let totalScore = 0;
+        for (const f of fields) {
+          const c = entries.filter(e => e.fieldId === f.id).length;
+          counts[f.name] = c;
+          totalScore += c * (f.score || 0);
+        }
+        users.push({
+          ...user,
+          counts,
+          totalEntries: entries.length,
+          totalScore,
+          lastLoginAt: loginsSnap.docs[0]?.data()?.at || user.lastLoginAt || null
+        });
+      }
+      state.allUsers = users;
+      renderAdminTable(fields);
+    }
+
+    function renderAdminTable(fields) {
+      const q = $('userSearchInput').value.trim().toLowerCase();
+      const sort = $('sortUsersSelect').value;
+      let rows = [...state.allUsers].filter(u => {
+        if (!q) return true;
+        return (u.name || '').toLowerCase().includes(q) || (u.email || '').toLowerCase().includes(q);
+      });
+      rows.sort((a, b) => {
+        if (sort === 'score_desc') return b.totalScore - a.totalScore;
+        if (sort === 'score_asc') return a.totalScore - b.totalScore;
+        if (sort === 'name_asc') return (a.name || '').localeCompare(b.name || '');
+        if (sort === 'logins_desc') return (b.lastLoginAt?.toMillis?.() || 0) - (a.lastLoginAt?.toMillis?.() || 0);
+        return 0;
+      });
+
+      adminTableHead.innerHTML = `
+        <th>Name</th>
+        <th>Email</th>
+        <th>Role</th>
+        <th>Total score</th>
+        <th>Total entries</th>
+        <th>Last login</th>
+        ${fields.filter(f => f.active !== false).map(f => `<th>${escapeHtml(f.name)}</th>`).join('')}
+      `;
+
+      adminTableBody.innerHTML = rows.map(u => `
+        <tr>
+          <td>${escapeHtml(u.name || '')}</td>
+          <td>${escapeHtml(u.email || '')}</td>
+          <td>${escapeHtml(u.role || 'user')}</td>
+          <td>${u.totalScore || 0}</td>
+          <td>${u.totalEntries || 0}</td>
+          <td>${formatDate(u.lastLoginAt)}</td>
+          ${fields.filter(f => f.active !== false).map(f => `<td>${u.counts[f.name] || 0}</td>`).join('')}
+        </tr>
+      `).join('') || '<tr><td colspan="99">No users found.</td></tr>';
+    }
+
+    function downloadCsv() {
+      const activeFields = state.fields.map(f => f.name);
+      const headers = ['Name', 'Email', 'Role', 'Total score', 'Total entries', 'Last login', ...activeFields];
+      const lines = [headers.join(',')];
+      for (const u of state.allUsers) {
+        const row = [
+          csvSafe(u.name), csvSafe(u.email), csvSafe(u.role || 'user'),
+          u.totalScore || 0, u.totalEntries || 0, csvSafe(formatDate(u.lastLoginAt)),
+          ...activeFields.map(f => u.counts[f] || 0)
+        ];
+        lines.push(row.join(','));
+      }
+      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'jsm-participation-data.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    function csvSafe(v) {
+      const s = String(v ?? '');
+      return `"${s.replace(/"/g, '""')}"`;
+    }
+
+    function updateUiForAuth() {
+      const signedIn = !!state.user;
+      authSection.classList.toggle('hidden', signedIn);
+      userSection.classList.toggle('hidden', !signedIn);
+      adminSection.classList.toggle('hidden', !signedIn || !state.isAdmin);
+    }
+
+    let unsubs = [];
+    onAuthStateChanged(auth, async (user) => {
+      unsubs.forEach(fn => fn && fn());
+      unsubs = [];
+      state.user = user;
+      state.profile = null;
+      state.isAdmin = false;
+      state.myEntries = [];
+      state.allUsers = [];
+      updateUiForAuth();
+
+      if (!user) {
+        $('rolePill').textContent = 'Signed out';
+        metricCards.innerHTML = '';
+        adminTableBody.innerHTML = '';
+        adminTableHead.innerHTML = '';
+        return;
+      }
+
+      state.profile = await ensureUserProfile(user);
+      state.isAdmin = state.profile?.role === 'admin';
+      await ensureDefaults(state.isAdmin);
+      renderProfile();
+      updateUiForAuth();
+      unsubs.push(watchFields());
+      unsubs.push(watchMyEntries());
+      if (state.isAdmin) await loadAdminData();
+    });
+
+    $('googleLoginBtn').onclick = signInGoogle;
+    $('logoutBtn').onclick = logout;
+    $('addFieldBtn').onclick = addField;
+    $('refreshAdminBtn').onclick = loadAdminData;
+    $('downloadCsvBtn').onclick = downloadCsv;
+    $('userSearchInput').oninput = async () => {
+      if (state.isAdmin) await loadAdminData();
+    };
+    $('sortUsersSelect').onchange = async () => {
+      if (state.isAdmin) await loadAdminData();
+    };
+  </script>
+</body>
+</html>
