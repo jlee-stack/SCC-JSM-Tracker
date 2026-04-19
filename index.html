@@ -224,6 +224,11 @@
         <div class="pill" id="fieldCountPill">0 fields</div>
       </div>
       <div id="metricCards" class="cards"></div>
+
+      <div class="section-title">
+        <h3>Admin adjustments</h3>
+      </div>
+      <div id="adminAdjustmentsList" class="cards"></div>
     </section>
 
     <section id="adminSection" class="hidden">
@@ -245,6 +250,26 @@
         </div>
         <button class="btn primary" id="addFieldBtn">Add field</button>
         <div id="fieldAdminList" class="list"></div>
+      </div>
+
+      <div class="panel card stack" style="margin-top:12px;">
+        <div class="two">
+          <div>
+            <div class="tiny">Select user</div>
+            <select class="select" id="adjustUserId">
+              <option value="">Select a user</option>
+            </select>
+          </div>
+          <div>
+            <div class="tiny">Adjustment amount</div>
+            <input class="input" id="adjustAmount" type="number" step="1" placeholder="Example: 5 or -3" />
+          </div>
+        </div>
+        <div>
+          <div class="tiny">Reason</div>
+          <input class="input" id="adjustReason" placeholder="Reason for admin adjustment" />
+        </div>
+        <button class="btn primary" id="applyAdjustmentBtn">Apply admin adjustment</button>
       </div>
 
       <div class="panel card stack" style="margin-top:12px;">
@@ -296,7 +321,7 @@
     } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-auth.js';
     import {
       getFirestore, doc, setDoc, getDoc, addDoc, collection, serverTimestamp,
-      onSnapshot, query, orderBy, where, getDocs, updateDoc, deleteDoc
+      onSnapshot, query, orderBy, getDocs, updateDoc, deleteDoc
     } from 'https://www.gstatic.com/firebasejs/10.12.5/firebase-firestore.js';
 
     // =============================
@@ -335,6 +360,7 @@ const firebaseConfig = {
       isAdmin: false,
       fields: [],
       myEntries: [],
+      myAdjustments: [],
       allUsers: []
     };
 
@@ -343,6 +369,7 @@ const firebaseConfig = {
     const userSection = $('userSection');
     const adminSection = $('adminSection');
     const metricCards = $('metricCards');
+    const adminAdjustmentsList = $('adminAdjustmentsList');
     const fieldAdminList = $('fieldAdminList');
     const adminTableHead = $('adminTableHead');
     const adminTableBody = $('adminTableBody');
@@ -456,6 +483,30 @@ const firebaseConfig = {
       $('rolePill').textContent = state.isAdmin ? 'Admin' : 'Member';
     }
 
+    function renderMyAdjustments() {
+      if (!adminAdjustmentsList) return;
+
+      if (!state.myAdjustments.length) {
+        adminAdjustmentsList.innerHTML = `<div class="empty">No admin adjustments.</div>`;
+        return;
+      }
+
+      adminAdjustmentsList.innerHTML = state.myAdjustments.map(adj => `
+        <div class="panel card">
+          <div class="metric-head">
+            <div>
+              <div class="metric-title">Admin adjustment</div>
+              <div class="score">${formatDate(adj.createdAt)} · ${Number(adj.amount) > 0 ? '+' : ''}${Number(adj.amount) || 0}</div>
+            </div>
+            <div class="right">
+              <div class="metric-count">${Number(adj.amount) > 0 ? '+' : ''}${Number(adj.amount) || 0}</div>
+            </div>
+          </div>
+          <div class="footer-note">${escapeHtml(adj.reason || 'No reason provided')}</div>
+        </div>
+      `).join('');
+    }
+
     function getFieldSummary(fieldId) {
       const field = state.fields.find(f => f.id === fieldId);
       const entries = state.myEntries.filter(e => e.fieldId === fieldId);
@@ -472,10 +523,13 @@ const firebaseConfig = {
     function renderMetrics() {
       const summaries = state.fields.map(f => getFieldSummary(f.id));
       const totalEntries = summaries.reduce((a, b) => a + b.count, 0);
-      const totalScore = summaries.reduce((a, b) => a + b.score, 0);
+      const activityScore = summaries.reduce((a, b) => a + b.score, 0);
+      const adjustmentScore = state.myAdjustments.reduce((sum, adj) => sum + (Number(adj.amount) || 0), 0);
+      const totalScore = activityScore + adjustmentScore;
       $('totalEntries').textContent = totalEntries;
       $('totalScore').textContent = totalScore;
       $('fieldCountPill').textContent = `${state.fields.length} fields`;
+      renderMyAdjustments();
 
       metricCards.innerHTML = '';
       if (!state.fields.length) {
@@ -622,6 +676,18 @@ const firebaseConfig = {
       });
     }
 
+    function watchMyAdjustments() {
+      if (!state.user) return () => {};
+      return onSnapshot(
+        query(collection(db, 'users', state.user.uid, 'adjustments'), orderBy('createdAt', 'desc')),
+        snap => {
+          state.myAdjustments = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+          renderMetrics();
+          renderMyAdjustments();
+        }
+      );
+    }
+
     async function renderFieldAdmin() {
       fieldAdminList.innerHTML = '';
       const all = await getDocs(query(collection(db, 'fields'), orderBy('order')));
@@ -670,6 +736,36 @@ const firebaseConfig = {
       toast('Field added');
     }
 
+    async function applyAdminAdjustment() {
+      if (!state.isAdmin || !state.user) return toast('Admin only');
+
+      const userId = $('adjustUserId').value;
+      const amount = Number($('adjustAmount').value);
+      const reason = $('adjustReason').value.trim();
+
+      if (!userId) return toast('Select a user');
+      if (!Number.isFinite(amount) || amount === 0) return toast('Enter a non-zero adjustment');
+      if (!reason) return toast('Enter a reason');
+
+      const target = state.allUsers.find(u => u.id === userId);
+      if (!target) return toast('User not found');
+
+      await addDoc(collection(db, 'users', userId, 'adjustments'), {
+        amount,
+        reason,
+        createdAt: serverTimestamp(),
+        adminUid: state.user.uid,
+        adminEmail: state.user.email || '',
+        adminName: state.profile?.name || state.user.displayName || ''
+      });
+
+      $('adjustAmount').value = '';
+      $('adjustReason').value = '';
+
+      await loadAdminData();
+      toast('Admin adjustment applied');
+    }
+
     async function loadAdminData() {
       const userDocs = await getDocs(collection(db, 'users'));
       const fieldsAll = await getDocs(query(collection(db, 'fields'), orderBy('order')));
@@ -680,23 +776,52 @@ const firebaseConfig = {
         const user = { id: userDoc.id, ...userDoc.data() };
         const entriesSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'entries'), orderBy('entryDate', 'desc')));
         const loginsSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'logins'), orderBy('at', 'desc')));
+        const adjustmentsSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'adjustments'), orderBy('createdAt', 'desc')));
+
         const entries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+        const adjustments = adjustmentsSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const counts = {};
-        let totalScore = 0;
+        let activityScore = 0;
+
         for (const f of fields) {
           const c = entries.filter(e => e.fieldId === f.id).length;
           counts[f.name] = c;
-          totalScore += c * (f.score || 0);
+          activityScore += c * (f.score || 0);
         }
+
+        const adjustmentTotal = adjustments.reduce((sum, adj) => sum + (Number(adj.amount) || 0), 0);
+        const latestAdj = adjustments[0] || null;
+
         users.push({
           ...user,
           counts,
           totalEntries: entries.length,
-          totalScore,
-          lastLoginAt: loginsSnap.docs[0]?.data()?.at || user.lastLoginAt || null
+          activityScore,
+          adjustmentTotal,
+          totalScore: activityScore + adjustmentTotal,
+          adjustments,
+          lastLoginAt: loginsSnap.docs[0]?.data()?.at || user.lastLoginAt || null,
+          latestModification: latestAdj
+            ? `${formatDate(latestAdj.createdAt)} (${Number(latestAdj.amount) > 0 ? '+' : ''}${Number(latestAdj.amount) || 0})`
+            : '—'
         });
       }
       state.allUsers = users;
+
+      const userSelect = $('adjustUserId');
+      if (userSelect) {
+        const currentValue = userSelect.value;
+        const nonAdmins = users.filter(u => (u.role || 'user') !== 'admin');
+        userSelect.innerHTML = `
+          <option value="">Select a user</option>
+          ${nonAdmins
+            .sort((a, b) => (a.name || '').localeCompare(b.name || ''))
+            .map(u => `<option value="${u.id}">${escapeHtml(u.name || u.email || u.id)}${u.email ? ` (${escapeHtml(u.email)})` : ''}</option>`)
+            .join('')}
+        `;
+        if (nonAdmins.some(u => u.id === currentValue)) userSelect.value = currentValue;
+      }
+
       renderAdminTable(fields);
     }
 
@@ -723,6 +848,7 @@ const firebaseConfig = {
         <th>Email</th>
         <th>Role</th>
         <th>Total score</th>
+        <th>Modification</th>
         <th>Total entries</th>
         <th>Last login</th>
         ${fields.filter(f => f.active !== false).map(f => `<th>${escapeHtml(f.name)}</th>`).join('')}
@@ -734,6 +860,7 @@ const firebaseConfig = {
           <td>${escapeHtml(u.email || '')}</td>
           <td>${escapeHtml(u.role || 'user')}</td>
           <td>${u.totalScore || 0}</td>
+          <td>${escapeHtml(u.latestModification || '—')}</td>
           <td>${u.totalEntries || 0}</td>
           <td>${formatDate(u.lastLoginAt)}</td>
           ${fields.filter(f => f.active !== false).map(f => `<td>${u.counts[f.name] || 0}</td>`).join('')}
@@ -743,17 +870,18 @@ const firebaseConfig = {
 
     function downloadCsv() {
       const activeFields = state.fields.map(f => f.name);
-      const headers = ['Name', 'Email', 'Role', 'Total score', 'Total entries', 'Last login', ...activeFields];
+      const headers = ['Name', 'Email', 'Role', 'Total score', 'Modification', 'Total entries', 'Last login', ...activeFields];
       const lines = [headers.join(',')];
       for (const u of state.allUsers) {
         const row = [
           csvSafe(u.name), csvSafe(u.email), csvSafe(u.role || 'user'),
-          u.totalScore || 0, u.totalEntries || 0, csvSafe(formatDate(u.lastLoginAt)),
+          u.totalScore || 0, csvSafe(u.latestModification || '—'), u.totalEntries || 0, csvSafe(formatDate(u.lastLoginAt)),
           ...activeFields.map(f => u.counts[f] || 0)
         ];
         lines.push(row.join(','));
       }
-      const blob = new Blob([lines.join('\n')], { type: 'text/csv;charset=utf-8;' });
+      const blob = new Blob([lines.join('
+')], { type: 'text/csv;charset=utf-8;' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -782,12 +910,14 @@ const firebaseConfig = {
       state.profile = null;
       state.isAdmin = false;
       state.myEntries = [];
+      state.myAdjustments = [];
       state.allUsers = [];
       updateUiForAuth();
 
       if (!user) {
         $('rolePill').textContent = 'Signed out';
         metricCards.innerHTML = '';
+        adminAdjustmentsList.innerHTML = '';
         adminTableBody.innerHTML = '';
         adminTableHead.innerHTML = '';
         return;
@@ -800,6 +930,7 @@ const firebaseConfig = {
       updateUiForAuth();
       unsubs.push(watchFields());
       unsubs.push(watchMyEntries());
+      unsubs.push(watchMyAdjustments());
       if (state.isAdmin) await loadAdminData();
     });
 
@@ -807,6 +938,7 @@ const firebaseConfig = {
     $('logoutBtn').onclick = logout;
     $('saveProfileBtn').onclick = saveProfileName;
     $('addFieldBtn').onclick = addField;
+    $('applyAdjustmentBtn').onclick = applyAdminAdjustment;
     $('refreshAdminBtn').onclick = loadAdminData;
     $('downloadCsvBtn').onclick = downloadCsv;
     $('userSearchInput').oninput = async () => {
