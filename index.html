@@ -289,7 +289,15 @@
         <h3>Admin-only score change history</h3>
         <span class="pill">Tracks all admin edits</span>
       </div>
-      <div id="adminScoreHistoryBox" class="list"></div>
+      <div 
+        id="adminScoreHistoryBox" 
+        class="list"
+        style="
+          max-height: 320px;
+          overflow-y: auto;
+          padding-right: 4px;
+        "
+      ></div>
     </div>
     </section>
   </div>
@@ -787,7 +795,7 @@ const firebaseConfig = {
       }
 
       box.innerHTML = state.adminScoreHistory.map(h => `
-        <div class="list-row">
+        <div class="list-row" style="align-items:start;">
           <div>
             <strong>${escapeHtml(h.userName || 'Unnamed user')}</strong>
             <div class="tiny">${escapeHtml(h.userEmail || '')}</div>
@@ -795,8 +803,11 @@ const firebaseConfig = {
           <div>Old: ${h.oldScore || 0}</div>
           <div>New: ${h.newScore || 0}</div>
           <div>
-            Change: ${h.changeAmount || 0}
-            <div class="tiny">By ${escapeHtml(h.changedBy || '')} on ${formatDate(h.changedAt)}</div>
+            <strong>${h.changeAmount > 0 ? '+' : ''}${h.changeAmount || 0}</strong>
+            <div class="tiny">
+              ${escapeHtml(h.changedBy || '')}<br>
+              ${formatDate(h.changedAt)}
+            </div>
           </div>
         </div>
       `).join('');
