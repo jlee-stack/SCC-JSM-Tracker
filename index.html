@@ -680,6 +680,9 @@ const firebaseConfig = {
         const user = { id: userDoc.id, ...userDoc.data() };
         const entriesSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'entries'), orderBy('entryDate', 'desc')));
         const loginsSnap = await getDocs(query(collection(db, 'users', userDoc.id, 'logins'), orderBy('at', 'desc')));
+        const adminScoreHistorySnap = await getDocs(
+          query(collection(db, 'users', userDoc.id, 'adminScoreHistory'), orderBy('changedAt', 'desc'))
+        );
         const entries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const counts = {};
         let totalScore = 0;
@@ -693,6 +696,7 @@ const firebaseConfig = {
           counts,
           totalEntries: entries.length,
           totalScore,
+          adminScoreHistory: adminScoreHistorySnap.docs.map(d => ({ id: d.id, ...d.data() })),
           lastLoginAt: loginsSnap.docs[0]?.data()?.at || user.lastLoginAt || null
         });
       }
@@ -702,13 +706,23 @@ const firebaseConfig = {
 
     async function updateAdminOnlyScore(userId, value) {
       const adminOnlyScore = Number(value || 0);
-
-      await updateDoc(doc(db, 'users', userId), {
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      const previousScore = userSnap.data()?.adminOnlyScore || 0;
+    
+      await updateDoc(userRef, {
         adminOnlyScore,
         adminOnlyScoreUpdatedAt: serverTimestamp(),
         adminOnlyScoreUpdatedBy: state.user?.email || ''
       });
-
+    
+      await addDoc(collection(db, 'users', userId, 'adminScoreHistory'), {
+        previousScore,
+        newScore: adminOnlyScore,
+        changedBy: state.user?.email || '',
+        changedAt: serverTimestamp()
+      });
+    
       toast('Admin-only score updated');
       await loadAdminData();
     }
@@ -736,6 +750,7 @@ const firebaseConfig = {
         <th>Role</th>
         <th>Total score</th>
         <th>Admin-only score</th>
+        <th>Admin score history</th>
         <th>Total entries</th>
         <th>Last login</th>
         ${fields.filter(f => f.active !== false).map(f => `<th>${escapeHtml(f.name)}</th>`).join('')}
@@ -755,6 +770,18 @@ const firebaseConfig = {
             data-admin-score="${u.id}"
             style="min-width:90px;"
           />
+          </td>
+          <td>
+            ${(u.adminScoreHistory || []).length
+              ? (u.adminScoreHistory || []).map(h => `
+                  <div class="tiny">
+                    ${h.previousScore || 0} → ${h.newScore || 0}
+                    by ${escapeHtml(h.changedBy || '')}
+                    on ${formatDate(h.changedAt)}
+                  </div>
+                `).join('')
+              : '<span class="tiny">No edits</span>'
+            }
           </td>
           <td>${u.totalEntries || 0}</td>
           <td>${formatDate(u.lastLoginAt)}</td>
