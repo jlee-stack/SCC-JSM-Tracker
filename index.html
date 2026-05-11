@@ -683,16 +683,32 @@ const firebaseConfig = {
         const entries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const counts = {};
         let totalScore = 0;
+        const currentYear = new Date().getFullYear();
+        const previousYear = currentYear - 1;
+        let currentYearScore = 0;
+        let previousYearScore = 0;
         for (const f of fields) {
-          const c = entries.filter(e => e.fieldId === f.id).length;
+          const fieldEntries = entries.filter(e => e.fieldId === f.id);
+          const c = fieldEntries.length;
           counts[f.name] = c;
+
           totalScore += c * (f.score || 0);
+
+          for (const e of fieldEntries) {
+            const d = e.entryDate?.toDate ? e.entryDate.toDate() : new Date(e.entryDate);
+            const y = d.getFullYear();
+
+          if (y === currentYear) currentYearScore += f.score || 0;
+          if (y === previousYear) previousYearScore += f.score || 0;
+          }
         }
         users.push({
           ...user,
           counts,
           totalEntries: entries.length,
           totalScore,
+          currentYearScore,
+          previousYearScore,
           lastLoginAt: loginsSnap.docs[0]?.data()?.at || user.lastLoginAt || null
         });
       }
@@ -723,6 +739,8 @@ const firebaseConfig = {
         <th>Email</th>
         <th>Role</th>
         <th>Total score</th>
+        <th>Previous year score</th>
+        <th>Current year score</th>
         <th>Total entries</th>
         <th>Last login</th>
         ${fields.filter(f => f.active !== false).map(f => `<th>${escapeHtml(f.name)}</th>`).join('')}
@@ -734,6 +752,8 @@ const firebaseConfig = {
           <td>${escapeHtml(u.email || '')}</td>
           <td>${escapeHtml(u.role || 'user')}</td>
           <td>${u.totalScore || 0}</td>
+          <td>${u.previousYearScore || 0}</td>
+          <td>${u.currentYearScore || 0}</td>
           <td>${u.totalEntries || 0}</td>
           <td>${formatDate(u.lastLoginAt)}</td>
           ${fields.filter(f => f.active !== false).map(f => `<td>${u.counts[f.name] || 0}</td>`).join('')}
