@@ -700,6 +700,18 @@ const firebaseConfig = {
       renderAdminTable(fields);
     }
 
+    async function updateAdminOnlyScore(userId, value) {
+      const adminOnlyScore = Number(value || 0);
+
+      await updateDoc(doc(db, 'users', userId), {
+        adminOnlyScore,
+        adminOnlyScoreUpdatedAt: serverTimestamp(),
+        adminOnlyScoreUpdatedBy: state.user?.email || ''
+      });
+
+      toast('Admin-only score updated');
+      await loadAdminData();
+    }
     function renderAdminTable(fields) {
       const q = $('userSearchInput').value.trim().toLowerCase();
       const sort = $('sortUsersSelect').value;
@@ -723,6 +735,7 @@ const firebaseConfig = {
         <th>Email</th>
         <th>Role</th>
         <th>Total score</th>
+        <th>Admin-only score</th>
         <th>Total entries</th>
         <th>Last login</th>
         ${fields.filter(f => f.active !== false).map(f => `<th>${escapeHtml(f.name)}</th>`).join('')}
@@ -734,21 +747,36 @@ const firebaseConfig = {
           <td>${escapeHtml(u.email || '')}</td>
           <td>${escapeHtml(u.role || 'user')}</td>
           <td>${u.totalScore || 0}</td>
+          <td>
+          <input 
+            class="input" 
+            type="number" 
+            value="${u.adminOnlyScore || 0}" 
+            data-admin-score="${u.id}"
+            style="min-width:90px;"
+          />
+          </td>
           <td>${u.totalEntries || 0}</td>
           <td>${formatDate(u.lastLoginAt)}</td>
           ${fields.filter(f => f.active !== false).map(f => `<td>${u.counts[f.name] || 0}</td>`).join('')}
         </tr>
       `).join('') || '<tr><td colspan="99">No users found.</td></tr>';
+      adminTableBody.querySelectorAll('[data-admin-score]').forEach(input => {
+        input.onchange = async () => {
+          const userId = input.getAttribute('data-admin-score');
+          await updateAdminOnlyScore(userId, input.value);
+        };
+      });
     }
 
     function downloadCsv() {
       const activeFields = state.fields.map(f => f.name);
-      const headers = ['Name', 'Email', 'Role', 'Total score', 'Total entries', 'Last login', ...activeFields];
+      const headers = ['Name', 'Email', 'Role', 'Total score', 'Admin-only score', 'Total entries', 'Last login', ...activeFields];
       const lines = [headers.join(',')];
       for (const u of state.allUsers) {
         const row = [
           csvSafe(u.name), csvSafe(u.email), csvSafe(u.role || 'user'),
-          u.totalScore || 0, u.totalEntries || 0, csvSafe(formatDate(u.lastLoginAt)),
+          u.totalScore || 0, u.adminOnlyScore || 0, u.totalEntries || 0, csvSafe(formatDate(u.lastLoginAt)),
           ...activeFields.map(f => u.counts[f] || 0)
         ];
         lines.push(row.join(','));
