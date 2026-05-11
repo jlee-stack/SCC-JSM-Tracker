@@ -284,6 +284,13 @@
           </table>
         </div>
       </div>
+      <div class="panel card stack" style="margin-top:12px;">
+      <div class="section-title" style="margin-top:0;">
+        <h3>Admin-only score change history</h3>
+        <span class="pill">Tracks all admin edits</span>
+      </div>
+      <div id="adminScoreHistoryBox" class="list"></div>
+    </div>
     </section>
   </div>
 
@@ -335,7 +342,8 @@ const firebaseConfig = {
       isAdmin: false,
       fields: [],
       myEntries: [],
-      allUsers: []
+      allUsers: [], 
+      adminScoreHistory: []
     };
 
     const $ = (id) => document.getElementById(id);
@@ -709,21 +717,91 @@ const firebaseConfig = {
         });
       }
       state.allUsers = users;
+      await loadAdminScoreHistory();
       renderAdminTable(fields);
     }
 
+    async function loadAdminScoreHistory() {
+      const history = [];
+    
+      for (const user of state.allUsers) {
+        const snap = await getDocs(
+          query(
+            collection(db, 'users', user.id, 'adminScoreHistory'),
+            orderBy('changedAt', 'desc')
+          )
+        );
+    
+        snap.forEach(docSnap => {
+          history.push({
+            id: docSnap.id,
+            userName: user.name || '',
+            userEmail: user.email || '',
+            ...docSnap.data()
+          });
+        });
+      }
+    
+      state.adminScoreHistory = history.sort((a, b) => {
+        return (b.changedAt?.toMillis?.() || 0) - (a.changedAt?.toMillis?.() || 0);
+      });
+    
+      renderAdminScoreHistory();
+    }
+    
     async function updateAdminOnlyScore(userId, value) {
       const adminOnlyScore = Number(value || 0);
 
-      await updateDoc(doc(db, 'users', userId), {
+      // Find the user's current admin-only score first
+      const userRef = doc(db, 'users', userId);
+      const userSnap = await getDoc(userRef);
+      const oldScore = Number(userSnap.data()?.adminOnlyScore || 0);
+
+      // Update the user's latest admin-only score
+      await updateDoc(userRef, {
         adminOnlyScore,
         adminOnlyScoreUpdatedAt: serverTimestamp(),
         adminOnlyScoreUpdatedBy: state.user?.email || ''
       });
 
+      // Save a permanent history record of this change
+      await addDoc(collection(db, 'users', userId, 'adminScoreHistory'), {
+        oldScore,
+        newScore: adminOnlyScore,
+        changeAmount: adminOnlyScore - oldScore,
+        changedBy: state.user?.email || '',
+        changedAt: serverTimestamp()
+      });
+
       toast('Admin-only score updated');
       await loadAdminData();
     }
+
+    function renderAdminScoreHistory() {
+      const box = $('adminScoreHistoryBox');
+      if (!box) return;
+    
+      if (!state.adminScoreHistory.length) {
+        box.innerHTML = `<div class="empty">No admin-only score changes yet.</div>`;
+        return;
+      }
+
+      box.innerHTML = state.adminScoreHistory.map(h => `
+        <div class="list-row">
+          <div>
+            <strong>${escapeHtml(h.userName || 'Unnamed user')}</strong>
+            <div class="tiny">${escapeHtml(h.userEmail || '')}</div>
+          </div>
+          <div>Old: ${h.oldScore || 0}</div>
+          <div>New: ${h.newScore || 0}</div>
+          <div>
+            Change: ${h.changeAmount || 0}
+            <div class="tiny">By ${escapeHtml(h.changedBy || '')} on ${formatDate(h.changedAt)}</div>
+          </div>
+        </div>
+      `).join('');
+    }
+    
     function renderAdminTable(fields) {
       const q = $('userSearchInput').value.trim().toLowerCase();
       const sort = $('sortUsersSelect').value;
