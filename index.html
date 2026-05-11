@@ -683,14 +683,26 @@ const firebaseConfig = {
         const entries = entriesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
         const counts = {};
         let totalScore = 0;
+        const yearlyScores = {};
         for (const f of fields) {
-          const c = entries.filter(e => e.fieldId === f.id).length;
-          counts[f.name] = c;
-          totalScore += c * (f.score || 0);
+         const fieldEntries = entries.filter(e => e.fieldId === f.id);
+        const c = fieldEntries.length;
+
+        counts[f.name] = c;
+        totalScore += c * (f.score || 0);
+
+        for (const entry of fieldEntries) {
+          const d = entry.entryDate?.toDate ? entry.entryDate.toDate() : new Date(entry.entryDate);
+          const year = d.getFullYear();
+
+          if (!yearlyScores[year]) yearlyScores[year] = 0;
+          yearlyScores[year] += f.score || 0;
+        }
         }
         users.push({
           ...user,
           counts,
+          yearlyScores,
           totalEntries: entries.length,
           totalScore,
           lastLoginAt: loginsSnap.docs[0]?.data()?.at || user.lastLoginAt || null
@@ -727,6 +739,10 @@ const firebaseConfig = {
         return 0;
       });
 
+      const years = [...new Set(
+        state.allUsers.flatMap(u => Object.keys(u.yearlyScores || {}))
+      )].sort((a, b) => b - a);
+      
       $('adminUserCount').textContent = state.allUsers.length;
       $('adminVisibleUserCount').textContent = rows.length;
 
@@ -735,6 +751,7 @@ const firebaseConfig = {
         <th>Email</th>
         <th>Role</th>
         <th>Total score</th>
+        ${years.map(y => `<th>${y} score</th>`).join('')}
         <th>Admin-only score</th>
         <th>Total entries</th>
         <th>Last login</th>
@@ -747,6 +764,7 @@ const firebaseConfig = {
           <td>${escapeHtml(u.email || '')}</td>
           <td>${escapeHtml(u.role || 'user')}</td>
           <td>${u.totalScore || 0}</td>
+          ${years.map(y => `<td>${u.yearlyScores?.[y] || 0}</td>`).join('')}
           <td>
           <input 
             class="input" 
