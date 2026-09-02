@@ -304,7 +304,32 @@
     </div>
     </section>
   </div>
+<div id="commentModal" class="panel hidden" style="
+  position: fixed;
+  inset: 0;
+  margin: auto;
+  width: min(92%, 500px);
+  height: fit-content;
+  padding: 20px;
+  z-index: 50;
+">
+  <h3 style="margin-top:0;">Add a comment</h3>
+  <p class="muted">Optional — leave a comment about your participation.</p>
 
+  <textarea
+    id="participationComment"
+    class="input"
+    rows="4"
+    maxlength="500"
+    placeholder="e.g. Joined Tuesday training session"
+    style="resize:vertical;"
+  ></textarea>
+
+  <div class="quick-actions">
+    <button class="btn" id="cancelCommentBtn">Cancel</button>
+    <button class="btn primary" id="saveCommentBtn">Record participation</button>
+  </div>
+</div>
   <div id="toast" class="toast hidden"></div>
 
   <script type="module">
@@ -530,11 +555,11 @@ const firebaseConfig = {
       }
 
       document.querySelectorAll('[data-add]').forEach(btn => {
-        btn.onclick = async () => {
-          const fieldId = btn.getAttribute('data-add');
-          await addEntry(fieldId, new Date());
-        };
-      });
+  btn.onclick = () => {
+    const fieldId = btn.getAttribute('data-add');
+    openCommentModal(fieldId);
+  };
+});
 
       document.querySelectorAll('[data-edit]').forEach(btn => {
         btn.onclick = () => {
@@ -597,17 +622,51 @@ const firebaseConfig = {
       };
     }
 
-    async function addEntry(fieldId, dateObj) {
-      if (!state.user) return;
-      await addDoc(collection(db, 'users', state.user.uid, 'entries'), {
-        fieldId,
-        entryDate: dateObj,
-        createdAt: serverTimestamp(),
-        updatedAt: serverTimestamp()
-      });
-      toast('Entry added');
-    }
+    async function addEntry(fieldId, dateObj, comment = '') {
+  if (!state.user) return;
 
+  await addDoc(collection(db, 'users', state.user.uid, 'entries'), {
+    fieldId,
+    entryDate: dateObj,
+    comment: comment.trim(),
+    createdAt: serverTimestamp(),
+    updatedAt: serverTimestamp()
+  });
+
+  toast('Entry added');
+}
+let pendingFieldId = null;
+
+function openCommentModal(fieldId) {
+  pendingFieldId = fieldId;
+
+  $('participationComment').value = '';
+  $('commentModal').classList.remove('hidden');
+  $('participationComment').focus();
+}
+
+function closeCommentModal() {
+  pendingFieldId = null;
+  $('commentModal').classList.add('hidden');
+}
+
+$('cancelCommentBtn').onclick = closeCommentModal;
+
+$('saveCommentBtn').onclick = async () => {
+  if (!pendingFieldId) return;
+
+  const comment = $('participationComment').value.trim();
+
+  await addEntry(
+    pendingFieldId,
+    new Date(),
+    comment
+  );
+
+  closeCommentModal();
+};
+    
+    
     async function updateEntryDate(entryId, dateObj) {
       await updateDoc(doc(db, 'users', state.user.uid, 'entries', entryId), {
         entryDate: dateObj,
