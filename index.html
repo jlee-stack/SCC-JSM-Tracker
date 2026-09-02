@@ -964,7 +964,7 @@ $('saveCommentBtn').onclick = async () => {
       URL.revokeObjectURL(url);
     }
 
-    function downloadUserData(userId) {
+    window.downloadUserData = function(userId) {
       const user = state.allUsers.find(u => u.id === userId);
       if (!user) return;
     
@@ -1000,7 +1000,7 @@ $('saveCommentBtn').onclick = async () => {
       a.click();
     
       URL.revokeObjectURL(url);
-    }
+    };
     
     function csvSafe(v) {
       const s = String(v ?? '');
