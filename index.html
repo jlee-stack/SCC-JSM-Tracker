@@ -965,6 +965,8 @@ $('saveCommentBtn').onclick = async () => {
     }
 
     window.downloadUserData = function(userId) {
+      console.log('Download clicked', userId);
+      
       const user = state.allUsers.find(u => u.id === userId);
       if (!user) return;
     
@@ -997,8 +999,10 @@ $('saveCommentBtn').onclick = async () => {
       const a = document.createElement('a');
       a.href = url;
       a.download = `${user.name || 'user'}-participation.csv`;
+      document.body.appendChild(a);
       a.click();
-    
+      a.remove();
+      
       URL.revokeObjectURL(url);
     };
     
