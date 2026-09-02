@@ -930,7 +930,7 @@ $('saveCommentBtn').onclick = async () => {
           <td>${u.totalEntries || 0}</td>
           <td>${formatDate(u.lastLoginAt)}</td>
           <td>
-            <button class="btn" onclick="downloadUserData('${u.id}')">Download</button>
+          <button class="btn" data-download-user="${u.id}">Download</button>
           </td>
           ${fields.filter(f => f.active !== false).map(f => `<td>${u.counts[f.name] || 0}</td>`).join('')}
         </tr>
@@ -941,6 +941,12 @@ $('saveCommentBtn').onclick = async () => {
           await updateAdminOnlyScore(userId, input.value);
         };
       });
+      adminTableBody.querySelectorAll('[data-download-user]').forEach(btn => {
+      btn.onclick = () => {
+        const userId = btn.getAttribute('data-download-user');
+        downloadUserData(userId);
+      };
+    });
     }
 
     function downloadCsv() {
@@ -964,7 +970,7 @@ $('saveCommentBtn').onclick = async () => {
       URL.revokeObjectURL(url);
     }
 
-    window.downloadUserData = function(userId) {
+    function downloadUserData(userId) {
       console.log('Download clicked', userId);
       
       const user = state.allUsers.find(u => u.id === userId);
